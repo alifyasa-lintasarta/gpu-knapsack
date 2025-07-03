@@ -11,9 +11,9 @@ import (
 
 type Config struct {
 	GPU struct {
-		Number   int               `yaml:"number"`
-		Capacity []int             `yaml:"capacity"`
-		Mappings map[string][]int  `yaml:"mappings"`
+		Number   int              `yaml:"number"`
+		Capacity []int            `yaml:"capacity"`
+		Mappings map[string][]int `yaml:"mappings"`
 	} `yaml:"gpu"`
 	Pods map[string]int `yaml:"pods"`
 }
@@ -58,14 +58,15 @@ func main() {
 		fmt.Println("No valid assignment found.")
 		return
 	}
-
 	fmt.Println("Valid assignment found:")
 	knapsackToItems := make(map[int][]int)
 	for itemIndex, knapsackIndex := range assignment {
 		knapsackToItems[knapsackIndex] = append(knapsackToItems[knapsackIndex], itemIndex)
 	}
 
-	for k, items := range knapsackToItems {
+	// Print in order (0 to len-1)
+	for k := 0; k < len(knapsackToItems); k++ {
+		items := knapsackToItems[k]
 		fmt.Printf("GPU %d: ", k)
 		for i, itemIndex := range items {
 			if i > 0 {
