@@ -1,0 +1,4 @@
+out/
+
+config/*
+!config/example*.yaml
