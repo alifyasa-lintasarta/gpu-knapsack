@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 )
 
 // Item keeps original index and precomputed total weight
@@ -187,4 +189,155 @@ func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnap
 		return itemAssignment
 	}
 	return nil
+}
+
+func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
+	// Create new pod configuration
+	testPods := make(map[string]int)
+	for k, v := range cfg.Pods {
+		testPods[k] = v
+	}
+	for k, v := range additional {
+		testPods[k] = testPods[k] + v
+	}
+
+	// Build request list
+	requests := []string{}
+	for podType, count := range testPods {
+		for i := 0; i < count; i++ {
+			requests = append(requests, podType)
+		}
+	}
+
+	// Build item weights
+	itemWeights := [][]int{}
+	for _, gpu := range requests {
+		weights, ok := cfg.GPU.Mappings[gpu]
+		if !ok {
+			return false
+		}
+		itemWeights = append(itemWeights, weights)
+	}
+
+	// Test if assignment is possible
+	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
+	return assignment != nil
+}
+
+// Helper function to create a canonical string representation of a combination
+func combinationToString(combination map[string]int) string {
+	var parts []string
+	for podType, count := range combination {
+		if count > 0 {
+			parts = append(parts, fmt.Sprintf("%s:%d", podType, count))
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, ",")
+}
+
+// findAllPossibleCombinations finds all maximal feasible combinations of additional pods
+func findAllPossibleCombinations(cfg Config) {
+	// Get all pod types
+	podTypes := make([]string, 0, len(cfg.GPU.Mappings))
+	for podType := range cfg.GPU.Mappings {
+		podTypes = append(podTypes, podType)
+	}
+
+	// Generate all combinations up to a reasonable limit
+	var allFeasible []map[string]int
+	maxPerType := 20 // Reasonable limit per pod type
+
+	// Use iterative approach to generate all combinations
+	generateCombinations(cfg, podTypes, make(map[string]int), 0, maxPerType, &allFeasible)
+
+	// Filter for maximal combinations (can't add any more pods)
+	var maximal []map[string]int
+	for _, combination := range allFeasible {
+		if isMaximalFeasible(cfg, combination) {
+			maximal = append(maximal, combination)
+		}
+	}
+
+	// Sort and print maximal combinations
+	sort.Slice(maximal, func(i, j int) bool {
+		return combinationToString(maximal[i]) < combinationToString(maximal[j])
+	})
+
+	fmt.Println("\nMaximal additional pod combinations you can add:")
+	for i, combination := range maximal {
+		fmt.Printf("%d. ", i+1)
+		first := true
+		totalPods := 0
+		for pType, count := range combination {
+			if count > 0 {
+				if !first {
+					fmt.Print(", ")
+				}
+				fmt.Printf("%s: %d", pType, count)
+				totalPods += count
+				first = false
+			}
+		}
+		if totalPods == 0 {
+			fmt.Print("No additional pods can be added")
+		}
+		fmt.Println()
+	}
+}
+
+// generateCombinations generates all possible combinations recursively
+func generateCombinations(cfg Config, podTypes []string, current map[string]int, typeIndex int, maxPerType int, results *[]map[string]int) {
+	if typeIndex >= len(podTypes) {
+		// Test if this combination is feasible (can be added to current system)
+		if canAssignWithAdditional(cfg, current) {
+			// Make a copy of current combination
+			combination := make(map[string]int)
+			for k, v := range current {
+				combination[k] = v
+			}
+			*results = append(*results, combination)
+		}
+		return
+	}
+
+	podType := podTypes[typeIndex]
+
+	// Try all counts from 0 to maxPerType for this pod type
+	for count := 0; count <= maxPerType; count++ {
+		if count > 0 {
+			current[podType] = count
+		}
+
+		generateCombinations(cfg, podTypes, current, typeIndex+1, maxPerType, results)
+
+		if count > 0 {
+			delete(current, podType)
+		}
+	}
+}
+
+// isMaximalFeasible checks if a combination is maximal (can't add any more pods)
+func isMaximalFeasible(cfg Config, combination map[string]int) bool {
+	// Get all pod types
+	podTypes := make([]string, 0, len(cfg.GPU.Mappings))
+	for podType := range cfg.GPU.Mappings {
+		podTypes = append(podTypes, podType)
+	}
+
+	// Try to add one more pod of each type
+	for _, podType := range podTypes {
+		testCombination := make(map[string]int)
+		for k, v := range combination {
+			testCombination[k] = v
+		}
+		testCombination[podType] = testCombination[podType] + 1
+
+		// If we can still add more, then current combination is not maximal
+		if canAssignWithAdditional(cfg, testCombination) {
+			return false
+		}
+	}
+
+	return true
 }

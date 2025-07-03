@@ -2,11 +2,10 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
-
-	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -58,13 +57,14 @@ func main() {
 		fmt.Println("No valid assignment found.")
 		return
 	}
+
 	fmt.Println("Valid assignment found:")
 	knapsackToItems := make(map[int][]int)
 	for itemIndex, knapsackIndex := range assignment {
 		knapsackToItems[knapsackIndex] = append(knapsackToItems[knapsackIndex], itemIndex)
 	}
 
-	// Print in order (0 to len-1)
+	// Print current assignment
 	for k := 0; k < len(knapsackToItems); k++ {
 		items := knapsackToItems[k]
 		fmt.Printf("GPU %d: ", k)
@@ -76,4 +76,6 @@ func main() {
 		}
 		fmt.Println()
 	}
+
+	findAllPossibleCombinations(cfg)
 }
