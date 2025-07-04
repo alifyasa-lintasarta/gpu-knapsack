@@ -1,9 +1,16 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"sort"
 	"strings"
+)
+
+// Global memoization caches
+var (
+	assignmentCache = make(map[string]bool)
+	knapsackCache   = make(map[string][]int)
 )
 
 // Item keeps original index and precomputed total weight
@@ -67,6 +74,24 @@ func firstFitDecreasing(sortedItems []Item, knapsackCapacity []int, numKnapsacks
 }
 
 func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
+	// Create cache key for knapsack solver
+	h := sha256.New()
+	for _, item := range itemWeights {
+		for _, w := range item {
+			h.Write([]byte(fmt.Sprintf("%d,", w)))
+		}
+		h.Write([]byte(";"))
+	}
+	for _, cap := range knapsackCapacity {
+		h.Write([]byte(fmt.Sprintf("%d,", cap)))
+	}
+	h.Write([]byte(fmt.Sprintf("n%d", numKnapsacks)))
+	cacheKey := fmt.Sprintf("%x", h.Sum(nil))
+
+	if cached, exists := knapsackCache[cacheKey]; exists {
+		return cached
+	}
+
 	numItems := len(itemWeights)
 	numDimensions := len(knapsackCapacity)
 
@@ -130,6 +155,29 @@ func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnap
 		if itemIndex == len(sortedItems) {
 			return true
 		}
+
+		// Early termination: check if remaining items can fit in remaining capacity
+		remainingCapacity := make([]int, numDimensions)
+		for k := 0; k < numKnapsacks; k++ {
+			for d := 0; d < numDimensions; d++ {
+				remainingCapacity[d] += knapsackCapacity[d] - usagePerKnapsack[k][d]
+			}
+		}
+
+		remainingDemand := make([]int, numDimensions)
+		for i := itemIndex; i < len(sortedItems); i++ {
+			item := sortedItems[i]
+			for d := 0; d < numDimensions; d++ {
+				remainingDemand[d] += item.Weight[d]
+			}
+		}
+
+		for d := 0; d < numDimensions; d++ {
+			if remainingDemand[d] > remainingCapacity[d] {
+				return false
+			}
+		}
+
 		triedEmpty := false
 		item := sortedItems[itemIndex]
 
@@ -185,13 +233,25 @@ func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnap
 		return false
 	}
 
+	var result []int
 	if backtrack(0) {
-		return itemAssignment
+		result = itemAssignment
+	} else {
+		result = nil
 	}
-	return nil
+
+	// Cache the result
+	knapsackCache[cacheKey] = result
+	return result
 }
 
 func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
+	// Create cache key from the combination
+	cacheKey := combinationToString(additional)
+	if cached, exists := assignmentCache[cacheKey]; exists {
+		return cached
+	}
+
 	// Create new pod configuration
 	testPods := make(map[string]int)
 	for k, v := range cfg.Pods {
@@ -201,19 +261,26 @@ func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
 		testPods[k] = testPods[k] + v
 	}
 
-	// Build request list
-	requests := []string{}
+	// Pre-calculate total pods for allocation
+	totalPods := 0
+	for _, count := range testPods {
+		totalPods += count
+	}
+
+	// Build request list with pre-allocated capacity
+	requests := make([]string, 0, totalPods)
 	for podType, count := range testPods {
 		for i := 0; i < count; i++ {
 			requests = append(requests, podType)
 		}
 	}
 
-	// Build item weights
-	itemWeights := [][]int{}
+	// Build item weights with pre-allocated capacity
+	itemWeights := make([][]int, 0, len(requests))
 	for _, gpu := range requests {
 		weights, ok := cfg.GPU.Mappings[gpu]
 		if !ok {
+			assignmentCache[cacheKey] = false
 			return false
 		}
 		itemWeights = append(itemWeights, weights)
@@ -221,11 +288,14 @@ func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
 
 	// Test if assignment is possible
 	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
-	return assignment != nil
+	result := assignment != nil
+	assignmentCache[cacheKey] = result
+	return result
 }
 
 // Helper function to create a canonical string representation of a combination
 func combinationToString(combination map[string]int) string {
+	var builder strings.Builder
 	var parts []string
 	for podType, count := range combination {
 		if count > 0 {
@@ -233,7 +303,13 @@ func combinationToString(combination map[string]int) string {
 		}
 	}
 	sort.Strings(parts)
-	return strings.Join(parts, ",")
+	for i, part := range parts {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteString(part)
+	}
+	return builder.String()
 }
 
 // findAllPossibleCombinations finds all maximal feasible combinations of additional pods
@@ -286,7 +362,7 @@ func findAllPossibleCombinations(cfg Config) {
 	}
 }
 
-// generateCombinations generates all possible combinations recursively
+// generateCombinations generates all possible combinations recursively with early pruning
 func generateCombinations(cfg Config, podTypes []string, current map[string]int, typeIndex int, maxPerType int, results *[]map[string]int) {
 	if typeIndex >= len(podTypes) {
 		// Test if this combination is feasible (can be added to current system)
@@ -307,6 +383,15 @@ func generateCombinations(cfg Config, podTypes []string, current map[string]int,
 	for count := 0; count <= maxPerType; count++ {
 		if count > 0 {
 			current[podType] = count
+		}
+
+		// Early pruning: if current combination already exceeds capacity, skip this branch
+		if count > 0 && !canAssignWithAdditional(cfg, current) {
+			// If adding this count makes it infeasible, no point trying higher counts
+			if count > 0 {
+				delete(current, podType)
+			}
+			break
 		}
 
 		generateCombinations(cfg, podTypes, current, typeIndex+1, maxPerType, results)

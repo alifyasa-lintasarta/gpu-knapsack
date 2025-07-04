@@ -35,7 +35,11 @@ func main() {
 	}
 
 	// Build the gpuRequests slice
-	gpuRequests := []string{}
+	totalPods := 0
+	for _, count := range cfg.Pods {
+		totalPods += count
+	}
+	gpuRequests := make([]string, 0, totalPods)
 	for gpuType, count := range cfg.Pods {
 		for i := 0; i < count; i++ {
 			gpuRequests = append(gpuRequests, gpuType)
@@ -43,7 +47,7 @@ func main() {
 	}
 
 	// Build itemWeights from requests and mappings
-	itemWeights := [][]int{}
+	itemWeights := make([][]int, 0, len(gpuRequests))
 	for _, gpu := range gpuRequests {
 		weights, ok := cfg.GPU.Mappings[gpu]
 		if !ok {
