@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -72,8 +73,19 @@ func groupItemsByKnapsack(assignment []int) map[int][]int {
 	return knapsackToItems
 }
 
+func printConfig(cfg Config) {
+	fmt.Println("Configuration:")
+	fmt.Printf("GPUs: %d\n", cfg.GPU.Number)
+	fmt.Printf("GPU Capacities: %v\n", cfg.GPU.Capacity)
+	fmt.Println("Requested Pods:")
+	for podType, count := range cfg.Pods {
+		fmt.Printf("  %s: %d\n", podType, count)
+	}
+	fmt.Println()
+}
+
 func printAssignment(knapsackToItems map[int][]int, gpuRequests []string) {
-	fmt.Println("Valid assignment found:")
+	fmt.Println("GPU Assignment:")
 	for k := 0; k < len(knapsackToItems); k++ {
 		items := knapsackToItems[k]
 		fmt.Printf("GPU %d: ", k)
@@ -90,6 +102,7 @@ func printAssignment(knapsackToItems map[int][]int, gpuRequests []string) {
 func main() {
 	filename := parseArgs()
 	cfg := loadConfig(filename)
+	printConfig(cfg)
 	gpuRequests := buildGPURequests(cfg.Pods)
 	itemWeights := buildItemWeights(gpuRequests, cfg.GPU.Mappings)
 
@@ -101,7 +114,7 @@ func main() {
 
 	knapsackToItems := groupItemsByKnapsack(assignment)
 	printAssignment(knapsackToItems, gpuRequests)
-	
+
 	maximalCombinations := findAllPossibleCombinations(cfg)
 	printMaximalCombinations(maximalCombinations)
 }

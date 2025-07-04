@@ -28,7 +28,7 @@ func printMaximalCombinations(maximal []map[string]int) {
 		return combinationToString(maximal[i]) < combinationToString(maximal[j])
 	})
 
-	fmt.Println("\nMaximal additional pod combinations you can add:")
+	fmt.Println("\nAdditional Pod Combinations:")
 	for i, combination := range maximal {
 		fmt.Printf("%d. ", i+1)
 		first := true
