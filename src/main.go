@@ -101,5 +101,7 @@ func main() {
 
 	knapsackToItems := groupItemsByKnapsack(assignment)
 	printAssignment(knapsackToItems, gpuRequests)
-	findAllPossibleCombinations(cfg)
+	
+	maximalCombinations := findAllPossibleCombinations(cfg)
+	printMaximalCombinations(maximalCombinations)
 }

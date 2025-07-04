@@ -50,7 +50,7 @@ func printMaximalCombinations(maximal []map[string]int) {
 	}
 }
 
-func findAllPossibleCombinations(cfg Config) {
+func findAllPossibleCombinations(cfg Config) []map[string]int {
 	podTypes := extractPodTypes(cfg)
 
 	var allFeasible []map[string]int
@@ -59,7 +59,7 @@ func findAllPossibleCombinations(cfg Config) {
 	generateCombinations(cfg, podTypes, make(map[string]int), 0, maxPerType, &allFeasible)
 
 	maximal := filterMaximalCombinations(cfg, allFeasible)
-	printMaximalCombinations(maximal)
+	return maximal
 }
 
 // generateCombinations generates all possible combinations recursively with early pruning
