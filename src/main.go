@@ -17,13 +17,14 @@ type Config struct {
 	Pods map[string]int `yaml:"pods"`
 }
 
-func main() {
+func parseArgs() string {
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <config.yaml>\n", os.Args[0])
 	}
-	filename := os.Args[1]
+	return os.Args[1]
+}
 
-	// Read the YAML file
+func loadConfig(filename string) Config {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Failed to read %s: %v", filename, err)
@@ -33,42 +34,46 @@ func main() {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		log.Fatalf("Failed to parse YAML: %v", err)
 	}
+	return cfg
+}
 
-	// Build the gpuRequests slice
+func buildGPURequests(pods map[string]int) []string {
 	totalPods := 0
-	for _, count := range cfg.Pods {
+	for _, count := range pods {
 		totalPods += count
 	}
+
 	gpuRequests := make([]string, 0, totalPods)
-	for gpuType, count := range cfg.Pods {
+	for gpuType, count := range pods {
 		for i := 0; i < count; i++ {
 			gpuRequests = append(gpuRequests, gpuType)
 		}
 	}
+	return gpuRequests
+}
 
-	// Build itemWeights from requests and mappings
+func buildItemWeights(gpuRequests []string, mappings map[string][]int) [][]int {
 	itemWeights := make([][]int, 0, len(gpuRequests))
 	for _, gpu := range gpuRequests {
-		weights, ok := cfg.GPU.Mappings[gpu]
+		weights, ok := mappings[gpu]
 		if !ok {
 			log.Fatalf("No mapping found for GPU type %s", gpu)
 		}
 		itemWeights = append(itemWeights, weights)
 	}
+	return itemWeights
+}
 
-	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
-	if assignment == nil {
-		fmt.Println("No valid assignment found.")
-		return
-	}
-
-	fmt.Println("Valid assignment found:")
+func groupItemsByKnapsack(assignment []int) map[int][]int {
 	knapsackToItems := make(map[int][]int)
 	for itemIndex, knapsackIndex := range assignment {
 		knapsackToItems[knapsackIndex] = append(knapsackToItems[knapsackIndex], itemIndex)
 	}
+	return knapsackToItems
+}
 
-	// Print current assignment
+func printAssignment(knapsackToItems map[int][]int, gpuRequests []string) {
+	fmt.Println("Valid assignment found:")
 	for k := 0; k < len(knapsackToItems); k++ {
 		items := knapsackToItems[k]
 		fmt.Printf("GPU %d: ", k)
@@ -80,6 +85,21 @@ func main() {
 		}
 		fmt.Println()
 	}
+}
 
+func main() {
+	filename := parseArgs()
+	cfg := loadConfig(filename)
+	gpuRequests := buildGPURequests(cfg.Pods)
+	itemWeights := buildItemWeights(gpuRequests, cfg.GPU.Mappings)
+
+	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
+	if assignment == nil {
+		fmt.Println("No valid assignment found.")
+		return
+	}
+
+	knapsackToItems := groupItemsByKnapsack(assignment)
+	printAssignment(knapsackToItems, gpuRequests)
 	findAllPossibleCombinations(cfg)
 }

@@ -73,8 +73,7 @@ func firstFitDecreasing(sortedItems []Item, knapsackCapacity []int, numKnapsacks
 	return assignment
 }
 
-func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
-	// Create cache key for knapsack solver
+func generateCacheKey(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) string {
 	h := sha256.New()
 	for _, item := range itemWeights {
 		for _, w := range item {
@@ -86,12 +85,10 @@ func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnap
 		h.Write([]byte(fmt.Sprintf("%d,", cap)))
 	}
 	h.Write([]byte(fmt.Sprintf("n%d", numKnapsacks)))
-	cacheKey := fmt.Sprintf("%x", h.Sum(nil))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
 
-	if cached, exists := knapsackCache[cacheKey]; exists {
-		return cached
-	}
-
+func validateInputs(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
 	numItems := len(itemWeights)
 	numDimensions := len(knapsackCapacity)
 
@@ -124,15 +121,19 @@ func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnap
 		return result
 	}
 
-	// Sort items by decreasing weight
+	return []int{} // Empty slice indicates validation passed but no early result
+}
+
+func tryGreedyAssignment(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
+	sortedItems := sortItemsByWeight(itemWeights)
+	return firstFitDecreasing(sortedItems, knapsackCapacity, numKnapsacks)
+}
+
+func tryBacktrackingAssignment(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
+	numItems := len(itemWeights)
+	numDimensions := len(knapsackCapacity)
 	sortedItems := sortItemsByWeight(itemWeights)
 
-	// Fast Greedy Assignment
-	if greedy := firstFitDecreasing(sortedItems, knapsackCapacity, numKnapsacks); greedy != nil {
-		return greedy
-	}
-
-	// Full backtracking fallback
 	usagePerKnapsack := make([][]int, numKnapsacks)
 	for i := range usagePerKnapsack {
 		usagePerKnapsack[i] = make([]int, numDimensions)
@@ -233,26 +234,39 @@ func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnap
 		return false
 	}
 
-	var result []int
 	if backtrack(0) {
-		result = itemAssignment
-	} else {
-		result = nil
+		return itemAssignment
+	}
+	return nil
+}
+
+func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
+	cacheKey := generateCacheKey(itemWeights, knapsackCapacity, numKnapsacks)
+
+	if cached, exists := knapsackCache[cacheKey]; exists {
+		return cached
 	}
 
-	// Cache the result
+	validationResult := validateInputs(itemWeights, knapsackCapacity, numKnapsacks)
+	if validationResult == nil {
+		return nil
+	}
+	if len(validationResult) > 0 {
+		knapsackCache[cacheKey] = validationResult
+		return validationResult
+	}
+
+	if greedy := tryGreedyAssignment(itemWeights, knapsackCapacity, numKnapsacks); greedy != nil {
+		knapsackCache[cacheKey] = greedy
+		return greedy
+	}
+
+	result := tryBacktrackingAssignment(itemWeights, knapsackCapacity, numKnapsacks)
 	knapsackCache[cacheKey] = result
 	return result
 }
 
-func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
-	// Create cache key from the combination
-	cacheKey := combinationToString(additional)
-	if cached, exists := assignmentCache[cacheKey]; exists {
-		return cached
-	}
-
-	// Create new pod configuration
+func buildTestConfiguration(cfg Config, additional map[string]int) map[string]int {
 	testPods := make(map[string]int)
 	for k, v := range cfg.Pods {
 		testPods[k] = v
@@ -260,35 +274,48 @@ func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
 	for k, v := range additional {
 		testPods[k] = testPods[k] + v
 	}
+	return testPods
+}
 
-	// Pre-calculate total pods for allocation
+func buildRequestsFromPods(testPods map[string]int) []string {
 	totalPods := 0
 	for _, count := range testPods {
 		totalPods += count
 	}
 
-	// Build request list with pre-allocated capacity
 	requests := make([]string, 0, totalPods)
 	for podType, count := range testPods {
 		for i := 0; i < count; i++ {
 			requests = append(requests, podType)
 		}
 	}
+	return requests
+}
 
-	// Build item weights with pre-allocated capacity
+func testAssignment(cfg Config, testPods map[string]int) bool {
+	requests := buildRequestsFromPods(testPods)
+
 	itemWeights := make([][]int, 0, len(requests))
 	for _, gpu := range requests {
 		weights, ok := cfg.GPU.Mappings[gpu]
 		if !ok {
-			assignmentCache[cacheKey] = false
 			return false
 		}
 		itemWeights = append(itemWeights, weights)
 	}
 
-	// Test if assignment is possible
 	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
-	result := assignment != nil
+	return assignment != nil
+}
+
+func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
+	cacheKey := combinationToString(additional)
+	if cached, exists := assignmentCache[cacheKey]; exists {
+		return cached
+	}
+
+	testPods := buildTestConfiguration(cfg, additional)
+	result := testAssignment(cfg, testPods)
 	assignmentCache[cacheKey] = result
 	return result
 }
@@ -312,30 +339,25 @@ func combinationToString(combination map[string]int) string {
 	return builder.String()
 }
 
-// findAllPossibleCombinations finds all maximal feasible combinations of additional pods
-func findAllPossibleCombinations(cfg Config) {
-	// Get all pod types
+func extractPodTypes(cfg Config) []string {
 	podTypes := make([]string, 0, len(cfg.GPU.Mappings))
 	for podType := range cfg.GPU.Mappings {
 		podTypes = append(podTypes, podType)
 	}
+	return podTypes
+}
 
-	// Generate all combinations up to a reasonable limit
-	var allFeasible []map[string]int
-	maxPerType := 20 // Reasonable limit per pod type
-
-	// Use iterative approach to generate all combinations
-	generateCombinations(cfg, podTypes, make(map[string]int), 0, maxPerType, &allFeasible)
-
-	// Filter for maximal combinations (can't add any more pods)
+func filterMaximalCombinations(cfg Config, allFeasible []map[string]int) []map[string]int {
 	var maximal []map[string]int
 	for _, combination := range allFeasible {
 		if isMaximalFeasible(cfg, combination) {
 			maximal = append(maximal, combination)
 		}
 	}
+	return maximal
+}
 
-	// Sort and print maximal combinations
+func printMaximalCombinations(maximal []map[string]int) {
 	sort.Slice(maximal, func(i, j int) bool {
 		return combinationToString(maximal[i]) < combinationToString(maximal[j])
 	})
@@ -360,6 +382,18 @@ func findAllPossibleCombinations(cfg Config) {
 		}
 		fmt.Println()
 	}
+}
+
+func findAllPossibleCombinations(cfg Config) {
+	podTypes := extractPodTypes(cfg)
+
+	var allFeasible []map[string]int
+	maxPerType := 20
+
+	generateCombinations(cfg, podTypes, make(map[string]int), 0, maxPerType, &allFeasible)
+
+	maximal := filterMaximalCombinations(cfg, allFeasible)
+	printMaximalCombinations(maximal)
 }
 
 // generateCombinations generates all possible combinations recursively with early pruning
