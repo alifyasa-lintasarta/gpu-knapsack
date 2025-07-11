@@ -13,7 +13,7 @@ type Config struct {
 		Number       int              `yaml:"number"`
 		Capacity     []int            `yaml:"capacity"`
 		Mappings     map[string][]int `yaml:"mappings"`
-		InitialState map[int][]string `yaml:"initial_state,omitempty"`
+		InitialState map[int][]string `yaml:"initialState,omitempty"`
 	} `yaml:"gpu"`
 	Pods map[string]int `yaml:"pods"`
 }
