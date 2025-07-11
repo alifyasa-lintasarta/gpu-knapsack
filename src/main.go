@@ -10,10 +10,10 @@ import (
 
 type Config struct {
 	GPU struct {
-		Number       int                `yaml:"number"`
-		Capacity     []int              `yaml:"capacity"`
-		Mappings     map[string][]int   `yaml:"mappings"`
-		InitialState map[int][]string   `yaml:"initial_state,omitempty"`
+		Number       int              `yaml:"number"`
+		Capacity     []int            `yaml:"capacity"`
+		Mappings     map[string][]int `yaml:"mappings"`
+		InitialState map[int][]string `yaml:"initial_state,omitempty"`
 	} `yaml:"gpu"`
 	Pods map[string]int `yaml:"pods"`
 }
@@ -83,42 +83,27 @@ func printConfig(cfg Config) {
 	fmt.Println()
 }
 
-func printAssignment(knapsackToItems map[int][]int, gpuRequests []string) {
-	fmt.Println("GPU Assignment:")
-	for k := 0; k < len(knapsackToItems); k++ {
-		items := knapsackToItems[k]
-		fmt.Printf("GPU %d: ", k)
-		for i, itemIndex := range items {
-			if i > 0 {
-				fmt.Print(", ")
-			}
-			fmt.Print(gpuRequests[itemIndex])
-		}
-		fmt.Println()
-	}
-}
-
 func printAssignmentWithInitial(knapsackToItems map[int][]int, allPods []string, initialState map[int][]string) {
 	fmt.Println("GPU Assignment:")
-	
+
 	// Count initial pods per GPU
 	initialCounts := make(map[int]int)
 	for gpuIndex, pods := range initialState {
 		initialCounts[gpuIndex] = len(pods)
 	}
-	
+
 	for k := 0; k < len(knapsackToItems); k++ {
 		items := knapsackToItems[k]
 		fmt.Printf("GPU %d: ", k)
-		
+
 		itemCount := 0
 		initialCount := initialCounts[k]
-		
+
 		for i, itemIndex := range items {
 			if i > 0 {
 				fmt.Print(", ")
 			}
-			
+
 			podName := allPods[itemIndex]
 			if itemCount < initialCount {
 				// This is an existing pod from initial state
@@ -129,7 +114,7 @@ func printAssignmentWithInitial(knapsackToItems map[int][]int, allPods []string,
 			}
 			itemCount++
 		}
-		
+
 		if len(items) == 0 {
 			fmt.Print("(empty)")
 		}
@@ -140,17 +125,17 @@ func printAssignmentWithInitial(knapsackToItems map[int][]int, allPods []string,
 func main() {
 	filename := parseArgs()
 	cfg := loadConfig(filename)
-	
+
 	// Validate initial state if present
 	if err := validateInitialState(cfg); err != nil {
 		log.Fatalf("Invalid initial state: %v", err)
 	}
-	
+
 	printConfig(cfg)
-	
+
 	// Compute initial usage from configuration
 	initialUsage := computeInitialUsage(cfg.GPU.InitialState, cfg.GPU.Mappings, cfg.GPU.Number, len(cfg.GPU.Capacity))
-	
+
 	// Build requests for new pods to be assigned
 	gpuRequests := buildGPURequests(cfg.Pods)
 	itemWeights := buildItemWeights(gpuRequests, cfg.GPU.Mappings)
@@ -166,7 +151,4 @@ func main() {
 	allAssignments, allPods := mergeAssignments(cfg.GPU.InitialState, assignment, gpuRequests)
 	knapsackToItems := groupItemsByKnapsack(allAssignments)
 	printAssignmentWithInitial(knapsackToItems, allPods, cfg.GPU.InitialState)
-
-	maximalCombinations := findAllPossibleCombinations(cfg)
-	printMaximalCombinations(maximalCombinations)
 }

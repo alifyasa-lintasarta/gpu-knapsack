@@ -27,15 +27,6 @@ func sortItemsByWeight(items [][]int) []Item {
 	return result
 }
 
-func tryBacktrackingAssignment(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
-	// Create empty initial usage for backward compatibility
-	initialUsage := make([][]int, numKnapsacks)
-	for i := range initialUsage {
-		initialUsage[i] = make([]int, len(knapsackCapacity))
-	}
-	return tryBacktrackingAssignmentWithInitial(itemWeights, knapsackCapacity, numKnapsacks, initialUsage)
-}
-
 func tryBacktrackingAssignmentWithInitial(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int, initialUsage [][]int) []int {
 	numItems := len(itemWeights)
 	numDimensions := len(knapsackCapacity)

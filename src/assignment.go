@@ -7,8 +7,7 @@ import (
 
 // Global memoization caches
 var (
-	assignmentCache = make(map[string]bool)
-	knapsackCache   = make(map[string][]int)
+	knapsackCache = make(map[string][]int)
 )
 
 func generateCacheKey(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int, initialUsage [][]int) string {
@@ -23,7 +22,7 @@ func generateCacheKey(itemWeights [][]int, knapsackCapacity []int, numKnapsacks 
 		h.Write([]byte(fmt.Sprintf("%d,", cap)))
 	}
 	h.Write([]byte(fmt.Sprintf("n%d", numKnapsacks)))
-	
+
 	for _, usage := range initialUsage {
 		for _, u := range usage {
 			h.Write([]byte(fmt.Sprintf("u%d,", u)))
@@ -89,7 +88,7 @@ func validateInputs(itemWeights [][]int, knapsackCapacity []int, numKnapsacks in
 				}
 			}
 		}
-		
+
 		// Try to assign items to available knapsacks
 		result := make([]int, numItems)
 		assignedCount := 0
@@ -116,15 +115,6 @@ func validateInputs(itemWeights [][]int, knapsackCapacity []int, numKnapsacks in
 	}
 
 	return []int{} // Empty slice indicates validation passed but no early result
-}
-
-func assignItemsToKnapsacks(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
-	// Create empty initial usage for backward compatibility
-	initialUsage := make([][]int, numKnapsacks)
-	for i := range initialUsage {
-		initialUsage[i] = make([]int, len(knapsackCapacity))
-	}
-	return assignItemsToKnapsacksWithInitial(itemWeights, knapsackCapacity, numKnapsacks, initialUsage)
 }
 
 func assignItemsToKnapsacksWithInitial(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int, initialUsage [][]int) []int {

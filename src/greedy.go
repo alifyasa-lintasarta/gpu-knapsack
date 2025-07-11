@@ -1,15 +1,5 @@
 package main
 
-// Greedy First-Fit Decreasing heuristic
-func firstFitDecreasing(sortedItems []Item, knapsackCapacity []int, numKnapsacks int) []int {
-	// Create empty initial usage for backward compatibility
-	initialUsage := make([][]int, numKnapsacks)
-	for i := range initialUsage {
-		initialUsage[i] = make([]int, len(knapsackCapacity))
-	}
-	return firstFitDecreasingWithInitial(sortedItems, knapsackCapacity, numKnapsacks, initialUsage)
-}
-
 func firstFitDecreasingWithInitial(sortedItems []Item, knapsackCapacity []int, numKnapsacks int, initialUsage [][]int) []int {
 	numDimensions := len(knapsackCapacity)
 	usage := make([][]int, numKnapsacks)
@@ -50,15 +40,6 @@ func firstFitDecreasingWithInitial(sortedItems []Item, knapsackCapacity []int, n
 		}
 	}
 	return assignment
-}
-
-func tryGreedyAssignment(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
-	// Create empty initial usage for backward compatibility
-	initialUsage := make([][]int, numKnapsacks)
-	for i := range initialUsage {
-		initialUsage[i] = make([]int, len(knapsackCapacity))
-	}
-	return tryGreedyAssignmentWithInitial(itemWeights, knapsackCapacity, numKnapsacks, initialUsage)
 }
 
 func tryGreedyAssignmentWithInitial(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int, initialUsage [][]int) []int {
