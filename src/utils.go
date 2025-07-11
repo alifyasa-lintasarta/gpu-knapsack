@@ -52,6 +52,11 @@ func buildRequestsFromPods(testPods map[string]int) []string {
 }
 
 func testAssignment(cfg Config, testPods map[string]int) bool {
+	// For backward compatibility when no initial state is considered
+	return testAssignmentWithInitial(cfg, testPods)
+}
+
+func testAssignmentWithInitial(cfg Config, testPods map[string]int) bool {
 	requests := buildRequestsFromPods(testPods)
 
 	itemWeights := make([][]int, 0, len(requests))
@@ -63,7 +68,10 @@ func testAssignment(cfg Config, testPods map[string]int) bool {
 		itemWeights = append(itemWeights, weights)
 	}
 
-	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
+	// Compute initial usage from configuration
+	initialUsage := computeInitialUsage(cfg.GPU.InitialState, cfg.GPU.Mappings, cfg.GPU.Number, len(cfg.GPU.Capacity))
+	
+	assignment := assignItemsToKnapsacksWithInitial(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number, initialUsage)
 	return assignment != nil
 }
 
@@ -74,7 +82,7 @@ func canAssignWithAdditional(cfg Config, additional map[string]int) bool {
 	}
 
 	testPods := buildTestConfiguration(cfg, additional)
-	result := testAssignment(cfg, testPods)
+	result := testAssignmentWithInitial(cfg, testPods)
 	assignmentCache[cacheKey] = result
 	return result
 }
