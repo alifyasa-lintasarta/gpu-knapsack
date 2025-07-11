@@ -14,7 +14,7 @@ gpu:
   # MIG Weights
   mappings:
     1g.10gb: [1, 1]  # 1/7 the SM and 1/8 the Memory
-    1g.20gb: [1, 2]  # 2/7 the SM and 2/8 the Memory
+    1g.20gb: [1, 2]  # 1/7 the SM and 2/8 the Memory
     3g.40gb: [3, 4]  # 3/7 the SM and 4/8 the Memory
 # Can these pods be assigned to the GPUs above?
 pods:
