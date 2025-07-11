@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -26,7 +25,7 @@ func parseArgs() string {
 }
 
 func loadConfig(filename string) Config {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Failed to read %s: %v", filename, err)
 	}
