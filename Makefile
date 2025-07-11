@@ -4,7 +4,9 @@ OUT_DIR=out
 SRC_DIR=src
 
 # Default target
-build:
+build: $(OUT_DIR)/$(BINARY_NAME)
+
+$(OUT_DIR)/$(BINARY_NAME): $(SRC_DIR)/*.go
 	mkdir -p $(OUT_DIR)
 	go build -o $(OUT_DIR)/$(BINARY_NAME) $(SRC_DIR)/*.go
 
