@@ -74,7 +74,6 @@ func groupItemsByKnapsack(assignment []int) map[int][]int {
 }
 
 func printConfig(cfg Config) {
-	fmt.Println("Configuration:")
 	fmt.Printf("GPUs: %d\n", cfg.GPU.Number)
 	fmt.Printf("GPU Capacities: %v\n", cfg.GPU.Capacity)
 	fmt.Println("Requested Pods:")
