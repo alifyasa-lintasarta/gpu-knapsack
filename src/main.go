@@ -10,9 +10,10 @@ import (
 
 type Config struct {
 	GPU struct {
-		Number   int              `yaml:"number"`
-		Capacity []int            `yaml:"capacity"`
-		Mappings map[string][]int `yaml:"mappings"`
+		Number       int                `yaml:"number"`
+		Capacity     []int              `yaml:"capacity"`
+		Mappings     map[string][]int   `yaml:"mappings"`
+		InitialState map[int][]string   `yaml:"initial_state,omitempty"`
 	} `yaml:"gpu"`
 	Pods map[string]int `yaml:"pods"`
 }
@@ -97,21 +98,74 @@ func printAssignment(knapsackToItems map[int][]int, gpuRequests []string) {
 	}
 }
 
+func printAssignmentWithInitial(knapsackToItems map[int][]int, allPods []string, initialState map[int][]string) {
+	fmt.Println("GPU Assignment:")
+	
+	// Count initial pods per GPU
+	initialCounts := make(map[int]int)
+	for gpuIndex, pods := range initialState {
+		initialCounts[gpuIndex] = len(pods)
+	}
+	
+	for k := 0; k < len(knapsackToItems); k++ {
+		items := knapsackToItems[k]
+		fmt.Printf("GPU %d: ", k)
+		
+		itemCount := 0
+		initialCount := initialCounts[k]
+		
+		for i, itemIndex := range items {
+			if i > 0 {
+				fmt.Print(", ")
+			}
+			
+			podName := allPods[itemIndex]
+			if itemCount < initialCount {
+				// This is an existing pod from initial state
+				fmt.Printf("%s (existing)", podName)
+			} else {
+				// This is a newly assigned pod
+				fmt.Printf("%s (new)", podName)
+			}
+			itemCount++
+		}
+		
+		if len(items) == 0 {
+			fmt.Print("(empty)")
+		}
+		fmt.Println()
+	}
+}
+
 func main() {
 	filename := parseArgs()
 	cfg := loadConfig(filename)
+	
+	// Validate initial state if present
+	if err := validateInitialState(cfg); err != nil {
+		log.Fatalf("Invalid initial state: %v", err)
+	}
+	
 	printConfig(cfg)
+	
+	// Compute initial usage from configuration
+	initialUsage := computeInitialUsage(cfg.GPU.InitialState, cfg.GPU.Mappings, cfg.GPU.Number, len(cfg.GPU.Capacity))
+	
+	// Build requests for new pods to be assigned
 	gpuRequests := buildGPURequests(cfg.Pods)
 	itemWeights := buildItemWeights(gpuRequests, cfg.GPU.Mappings)
 
-	assignment := assignItemsToKnapsacks(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number)
+	// Assign new pods using the initial state
+	assignment := assignItemsToKnapsacksWithInitial(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number, initialUsage)
 	if assignment == nil {
-		fmt.Println("No valid assignment found.")
+		fmt.Println("No valid assignment found for new pods.")
 		return
 	}
 
-	knapsackToItems := groupItemsByKnapsack(assignment)
-	printAssignment(knapsackToItems, gpuRequests)
+	// Merge initial state with new assignments for display
+	allAssignments, allPods := mergeAssignments(cfg.GPU.InitialState, assignment, gpuRequests)
+	knapsackToItems := groupItemsByKnapsack(allAssignments)
+	printAssignmentWithInitial(knapsackToItems, allPods, cfg.GPU.InitialState)
 
 	maximalCombinations := findAllPossibleCombinations(cfg)
 	printMaximalCombinations(maximalCombinations)
