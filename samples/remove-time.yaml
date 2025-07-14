@@ -1,0 +1,18 @@
+gpu:
+  number: 2
+  capacity: [100, 50]
+  mappings:
+    small: [10, 5]
+    medium: [30, 15]
+    large: [50, 25]
+
+items:
+  - type: large
+    time: 1
+    remove_time: 5
+  - type: medium
+    time: 2
+  - type: small
+    time: 3
+  - type: medium
+    time: 6

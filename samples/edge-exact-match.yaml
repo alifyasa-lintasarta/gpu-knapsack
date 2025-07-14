@@ -1,0 +1,15 @@
+gpu:
+  number: 2
+  capacity: [7, 8]
+  mappings:
+    7g.80gb: [7, 8]
+    4g.40gb: [4, 4]
+    3g.40gb: [3, 4]
+
+items:
+  - type: 7g.80gb
+    time: 1
+  - type: 4g.40gb
+    time: 2
+  - type: 3g.40gb
+    time: 3

@@ -1,0 +1,39 @@
+gpu:
+  number: 4
+  capacity: [7, 8]
+  mappings:
+    1g.10gb: [1, 1]
+    1g.20gb: [1, 2]
+    2g.20gb: [2, 2]
+    2g.30gb: [2, 3]
+    3g.40gb: [3, 4]
+    4g.50gb: [4, 5]
+    5g.60gb: [5, 6]
+    6g.70gb: [6, 7]
+    7g.80gb: [7, 8]
+
+items:
+  - type: 3g.40gb
+    time: 1
+  - type: 2g.20gb
+    time: 2
+  - type: 1g.10gb
+    time: 3
+  - type: 4g.50gb
+    time: 4
+  - type: 1g.20gb
+    time: 5
+  - type: 2g.30gb
+    time: 6
+  - type: 5g.60gb
+    time: 7
+  - type: 1g.10gb
+    time: 8
+  - type: 3g.40gb
+    time: 9
+  # - type: 6g.70gb
+  #   time: 10
+  # - type: 2g.20gb
+  #   time: 11
+  # - type: 1g.20gb
+  #   time: 12

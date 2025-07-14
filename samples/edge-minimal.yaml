@@ -1,0 +1,9 @@
+gpu:
+  number: 1
+  capacity: [7, 8]
+  mappings:
+    1g.10gb: [1, 1]
+
+items:
+  - type: 1g.10gb
+    time: 1
