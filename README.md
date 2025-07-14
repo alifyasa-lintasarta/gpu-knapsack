@@ -2,7 +2,7 @@
 
 ## Example
 
-For example, we have the following configuration (See [test/h100/initial-state-mixed.yaml](test/h100/initial-state-mixed.yaml)):
+For example, we have the following configuration (See [samples/timestamp.yaml](samples/timestamp.yaml)):
 
 ```yaml
 gpu:
@@ -11,11 +11,6 @@ gpu:
   # Each GPU have 7 part of SM and 8 part of Memory
   # See: https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html#id15
   capacity: [7, 8]
-  # Initial State of each GPUs
-  initialState:
-    0: [1g.10gb, 1g.10gb]
-    1: [2g.20gb]
-    2: []
   # MIG Weights
   mappings:
     1g.10gb: [1, 1] # 1/7 the SM and 1/8 the Memory
@@ -25,9 +20,15 @@ gpu:
     4g.40gb: [4, 4]
     7g.80gb: [7, 8] # 7/7 the SM and 8/8 the Memory
 # Can these pods be assigned to the GPUs above?
-pods:
-  3g.40gb: 1
-  1g.20gb: 2
+items:
+  - type: 3g.40gb
+    time: 1
+  - type: 1g.10gb
+    time: 5
+  - type: 3g.40gb
+    time: 3
+  - type: 1g.10gb
+    time: 6
 ```
 
 First, build the program.
@@ -35,25 +36,26 @@ First, build the program.
 ```sh
 ubuntu@alifyasa:~/gpu-knapsack$ make
 mkdir -p out
-go build -o out/app src/*.go
+go build -o out/gpu-knapsack src/*.go
 ```
 
 Then run the program with the config.
 
 ```sh
-ubuntu@alifyasa:~/gpu-knapsack$ time ./out/app test/h100/initial-state-mixed.yaml 
-GPUs: 3
+ubuntu@ubuntu:~/gpu-knapsack$ time ./out/gpu-knapsack samples/timestamp.yaml 
+GPUs: 2
 GPU Capacities: [7 8]
-Requested Pods:
-  3g.40gb: 1
-  1g.20gb: 2
+Items: 4
+  3g.40gb (t=1)
+  1g.10gb (t=5)
+  3g.40gb (t=3)
+  1g.10gb (t=6)
 
 GPU Assignment:
-GPU 0: 1g.10gb (existing), 1g.10gb (existing), 1g.20gb (new)
-GPU 1: 2g.20gb (existing), 1g.20gb (new)
-GPU 2: 3g.40gb (new)
+GPU 0: 3g.40gb (t=1), 3g.40gb (t=3)
+GPU 1: 1g.10gb (t=5), 1g.10gb (t=6)
 
-real    0m0.007s
-user    0m0.002s
-sys     0m0.005s
+real    0m0.010s
+user    0m0.007s
+sys     0m0.004s
 ```
