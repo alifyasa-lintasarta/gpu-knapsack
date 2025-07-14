@@ -4,25 +4,95 @@ import (
 	"sort"
 )
 
-// Item keeps original index and precomputed total weight
+// Item keeps original index and timestamp for ordering
 type Item struct {
 	Index  int
 	Weight []int
-	Total  int
+	Time   int
 }
 
-// Sort items in descending order of total resource usage
-func sortItemsByWeight(items [][]int) []Item {
+// Sort items by assignment time (earliest first)
+func sortItemsByTime(items []AssignmentItem, weights [][]int) []Item {
+	result := make([]Item, len(items))
+	for i, item := range items {
+		result[i] = Item{i, weights[i], item.AssignmentTime}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Time < result[j].Time
+	})
+	return result
+}
+
+func tryBacktrackingAssignment(items []AssignmentItem, itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
+	numItems := len(items)
+	numDimensions := len(knapsackCapacity)
+	sortedItems := sortItemsByTime(items, itemWeights)
+
+	usagePerKnapsack := make([][]int, numKnapsacks)
+	for i := range usagePerKnapsack {
+		usagePerKnapsack[i] = make([]int, numDimensions)
+	}
+	itemAssignment := make([]int, numItems)
+	for i := range itemAssignment {
+		itemAssignment[i] = -1
+	}
+
+	var backtrack func(int) bool
+	backtrack = func(itemIndex int) bool {
+		if itemIndex == len(sortedItems) {
+			return true
+		}
+
+		item := sortedItems[itemIndex]
+
+		// Try knapsacks in order (deterministic)
+		for k := 0; k < numKnapsacks; k++ {
+			canFit := true
+			for d := 0; d < numDimensions; d++ {
+				if usagePerKnapsack[k][d]+item.Weight[d] > knapsackCapacity[d] {
+					canFit = false
+					break
+				}
+			}
+			if !canFit {
+				continue
+			}
+
+			for d := 0; d < numDimensions; d++ {
+				usagePerKnapsack[k][d] += item.Weight[d]
+			}
+			itemAssignment[item.Index] = k
+
+			if backtrack(itemIndex + 1) {
+				return true
+			}
+
+			for d := 0; d < numDimensions; d++ {
+				usagePerKnapsack[k][d] -= item.Weight[d]
+			}
+			itemAssignment[item.Index] = -1
+		}
+		return false
+	}
+
+	if backtrack(0) {
+		return itemAssignment
+	}
+	return nil
+}
+
+// Legacy sorting function for backward compatibility
+func sortItemsByWeightLegacy(items [][]int) []Item {
 	result := make([]Item, len(items))
 	for i, w := range items {
 		total := 0
 		for _, v := range w {
 			total += v
 		}
-		result[i] = Item{i, w, total}
+		result[i] = Item{i, w, total} // Using total as time for legacy
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Total > result[j].Total
+		return result[i].Time > result[j].Time // Descending by total weight
 	})
 	return result
 }
@@ -30,7 +100,9 @@ func sortItemsByWeight(items [][]int) []Item {
 func tryBacktrackingAssignmentWithInitial(itemWeights [][]int, knapsackCapacity []int, numKnapsacks int, initialUsage [][]int) []int {
 	numItems := len(itemWeights)
 	numDimensions := len(knapsackCapacity)
-	sortedItems := sortItemsByWeight(itemWeights)
+	
+	// Keep old weight-based sorting for backward compatibility
+	sortedItems := sortItemsByWeightLegacy(itemWeights)
 
 	usagePerKnapsack := make([][]int, numKnapsacks)
 	for i := range usagePerKnapsack {

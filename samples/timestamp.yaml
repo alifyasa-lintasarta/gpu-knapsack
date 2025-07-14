@@ -8,6 +8,13 @@ gpu:
     3g.40gb: [3, 4]
     4g.40gb: [4, 4]
     7g.80gb: [7, 8]
-pods:
-  3g.40gb: 2
-  1g.20gb: 2
+
+items:
+  - type: 3g.40gb
+    time: 1
+  - type: 1g.10gb
+    time: 5
+  - type: 3g.40gb
+    time: 3
+  - type: 1g.10gb
+    time: 6

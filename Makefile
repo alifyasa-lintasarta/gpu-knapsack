@@ -1,5 +1,5 @@
 # Variables
-BINARY_NAME=app
+BINARY_NAME=gpu-knapsack
 OUT_DIR=out
 SRC_DIR=src
 

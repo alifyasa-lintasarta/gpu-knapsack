@@ -10,12 +10,16 @@ import (
 
 type Config struct {
 	GPU struct {
-		Number       int              `yaml:"number"`
-		Capacity     []int            `yaml:"capacity"`
-		Mappings     map[string][]int `yaml:"mappings"`
-		InitialState map[int][]string `yaml:"initialState,omitempty"`
+		Number   int              `yaml:"number"`
+		Capacity []int            `yaml:"capacity"`
+		Mappings map[string][]int `yaml:"mappings"`
 	} `yaml:"gpu"`
-	Pods map[string]int `yaml:"pods"`
+	Items []ConfigItem `yaml:"items"`
+}
+
+type ConfigItem struct {
+	Type string `yaml:"type"`
+	Time int    `yaml:"time"`
 }
 
 func parseArgs() string {
@@ -76,9 +80,9 @@ func groupItemsByKnapsack(assignment []int) map[int][]int {
 func printConfig(cfg Config) {
 	fmt.Printf("GPUs: %d\n", cfg.GPU.Number)
 	fmt.Printf("GPU Capacities: %v\n", cfg.GPU.Capacity)
-	fmt.Println("Requested Pods:")
-	for podType, count := range cfg.Pods {
-		fmt.Printf("  %s: %d\n", podType, count)
+	fmt.Printf("Items: %d\n", len(cfg.Items))
+	for _, item := range cfg.Items {
+		fmt.Printf("  %s (t=%d)\n", item.Type, item.Time)
 	}
 	fmt.Println()
 }
@@ -122,33 +126,73 @@ func printAssignmentWithInitial(knapsackToItems map[int][]int, allPods []string,
 	}
 }
 
+func buildAllPods(cfg Config) []AssignmentItem {
+	allPods := make([]AssignmentItem, len(cfg.Items))
+	for i, item := range cfg.Items {
+		allPods[i] = AssignmentItem{
+			Type:           item.Type,
+			AssignmentTime: item.Time,
+		}
+	}
+	return allPods
+}
+
 func main() {
 	filename := parseArgs()
 	cfg := loadConfig(filename)
 
-	// Validate initial state if present
-	if err := validateInitialState(cfg); err != nil {
-		log.Fatalf("Invalid initial state: %v", err)
-	}
-
 	printConfig(cfg)
 
-	// Compute initial usage from configuration
-	initialUsage := computeInitialUsage(cfg.GPU.InitialState, cfg.GPU.Mappings, cfg.GPU.Number, len(cfg.GPU.Capacity))
+	// Build unified list of all pods with timestamps
+	allPods := buildAllPods(cfg)
 
-	// Build requests for new pods to be assigned
-	gpuRequests := buildGPURequests(cfg.Pods)
-	itemWeights := buildItemWeights(gpuRequests, cfg.GPU.Mappings)
+	// Create assignment input
+	input := &AssignmentInput{
+		Items:            allPods,
+		KnapsackCapacity: cfg.GPU.Capacity,
+		NumKnapsacks:     cfg.GPU.Number,
+		Mappings:         cfg.GPU.Mappings,
+	}
 
-	// Assign new pods using the initial state
-	assignment := assignItemsToKnapsacksWithInitial(itemWeights, cfg.GPU.Capacity, cfg.GPU.Number, initialUsage)
-	if assignment == nil {
-		fmt.Println("No valid assignment found for new pods.")
+	// Assign all pods using timestamp-based algorithm
+	success, err := AssignItems(input)
+	if err != nil {
+		log.Fatalf("Assignment error: %v", err)
+	}
+	if !success {
+		fmt.Println("No valid assignment found.")
 		return
 	}
 
-	// Merge initial state with new assignments for display
-	allAssignments, allPods := mergeAssignments(cfg.GPU.InitialState, assignment, gpuRequests)
-	knapsackToItems := groupItemsByKnapsack(allAssignments)
-	printAssignmentWithInitial(knapsackToItems, allPods, cfg.GPU.InitialState)
+	// Print results
+	printNewAssignment(input)
+}
+
+func printNewAssignment(input *AssignmentInput) {
+	fmt.Println("GPU Assignment:")
+	
+	// Group items by knapsack
+	knapsackToItems := make(map[int][]int)
+	for itemIndex, knapsackIndex := range input.Assignment {
+		knapsackToItems[knapsackIndex] = append(knapsackToItems[knapsackIndex], itemIndex)
+	}
+	
+	for k := 0; k < input.NumKnapsacks; k++ {
+		items := knapsackToItems[k]
+		fmt.Printf("GPU %d: ", k)
+		
+		if len(items) == 0 {
+			fmt.Print("(empty)")
+		} else {
+			for i, itemIndex := range items {
+				if i > 0 {
+					fmt.Print(", ")
+				}
+				podType := input.Items[itemIndex].Type
+				podTime := input.Items[itemIndex].AssignmentTime
+				fmt.Printf("%s (t=%d)", podType, podTime)
+			}
+		}
+		fmt.Println()
+	}
 }
