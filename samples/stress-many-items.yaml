@@ -12,28 +12,28 @@ gpu:
     6g.70gb: [6, 7]
     7g.80gb: [7, 8]
 
-items:
+pods:
   - type: 3g.40gb
-    time: 1
+    addTime: 1
   - type: 2g.20gb
-    time: 2
+    addTime: 2
   - type: 1g.10gb
-    time: 3
+    addTime: 3
   - type: 4g.50gb
-    time: 4
+    addTime: 4
   - type: 1g.20gb
-    time: 5
+    addTime: 5
   - type: 2g.30gb
-    time: 6
+    addTime: 6
   - type: 5g.60gb
-    time: 7
+    addTime: 7
   - type: 1g.10gb
-    time: 8
+    addTime: 8
   - type: 3g.40gb
-    time: 9
+    addTime: 9
   # - type: 6g.70gb
-  #   time: 10
+  #   addTime: 10
   # - type: 2g.20gb
-  #   time: 11
+  #   addTime: 11
   # - type: 1g.20gb
-  #   time: 12
+  #   addTime: 12

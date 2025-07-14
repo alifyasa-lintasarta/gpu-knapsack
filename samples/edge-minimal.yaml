@@ -4,6 +4,6 @@ gpu:
   mappings:
     1g.10gb: [1, 1]
 
-items:
+pods:
   - type: 1g.10gb
-    time: 1
+    addTime: 1

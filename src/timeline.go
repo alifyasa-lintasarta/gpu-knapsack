@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 )
 
@@ -18,20 +19,9 @@ type Event struct {
 	Weight    []int
 }
 
-func sortItemsByTime(items []AssignmentItem, weights [][]int) []Item {
-	result := make([]Item, len(items))
-	for i, item := range items {
-		result[i] = Item{i, weights[i], item.AssignmentTime, item.RemoveTime}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Time < result[j].Time
-	})
-	return result
-}
-
 func buildEventTimeline(items []AssignmentItem, itemWeights [][]int) []Event {
 	var events []Event
-	
+
 	for i, item := range items {
 		// Add assignment event
 		events = append(events, Event{
@@ -40,8 +30,8 @@ func buildEventTimeline(items []AssignmentItem, itemWeights [][]int) []Event {
 			ItemIndex: i,
 			Weight:    itemWeights[i],
 		})
-		
-		// Add removal event if remove_time is specified
+
+		// Add removal event if removeTime is specified
 		if item.RemoveTime != nil {
 			events = append(events, Event{
 				Time:      *item.RemoveTime,
@@ -51,7 +41,7 @@ func buildEventTimeline(items []AssignmentItem, itemWeights [][]int) []Event {
 			})
 		}
 	}
-	
+
 	// Sort events by time, with removals before assignments at the same time
 	sort.Slice(events, func(i, j int) bool {
 		if events[i].Time == events[j].Time {
@@ -59,25 +49,30 @@ func buildEventTimeline(items []AssignmentItem, itemWeights [][]int) []Event {
 		}
 		return events[i].Time < events[j].Time
 	})
-	
+
 	return events
 }
 
-func tryTimelineAssignment(items []AssignmentItem, itemWeights [][]int, knapsackCapacity []int, numKnapsacks int) []int {
+func runEventLoop(items []AssignmentItem, itemWeights [][]int, knapsackCapacity []int, numKnapsacks int, input *AssignmentInput) bool {
 	numDimensions := len(knapsackCapacity)
 	events := buildEventTimeline(items, itemWeights)
-	
+
 	// Track current usage for each GPU
 	usage := make([][]int, numKnapsacks)
 	for i := range usage {
 		usage[i] = make([]int, numDimensions)
 	}
-	
+
 	assignment := make([]int, len(items))
 	for i := range assignment {
 		assignment[i] = -1
 	}
-	
+
+	fmt.Print("\n")
+	fmt.Println("Simulation Starting...")
+	fmt.Println("========================")
+	fmt.Print("\n")
+
 	// Process events chronologically
 	for _, event := range events {
 		if event.Type == "assign" {
@@ -91,7 +86,7 @@ func tryTimelineAssignment(items []AssignmentItem, itemWeights [][]int, knapsack
 						break
 					}
 				}
-				
+
 				if canFit {
 					// Assign to this GPU
 					for d := 0; d < numDimensions; d++ {
@@ -99,13 +94,18 @@ func tryTimelineAssignment(items []AssignmentItem, itemWeights [][]int, knapsack
 					}
 					assignment[event.ItemIndex] = k
 					placed = true
+
+					// Print state change
+					fmt.Printf("Time %d: Added %s to GPU %d\n", event.Time, items[event.ItemIndex].Type, k)
+					printGPUState(usage, knapsackCapacity, numKnapsacks)
 				}
 			}
-			
+
 			if !placed {
-				return nil // No space available
+				fmt.Printf("Time %d: Failed to assign %s - no space available\n", event.Time, items[event.ItemIndex].Type)
+				return false // No space available
 			}
-			
+
 		} else if event.Type == "remove" {
 			// Remove item from its assigned GPU
 			gpuIndex := assignment[event.ItemIndex]
@@ -113,9 +113,34 @@ func tryTimelineAssignment(items []AssignmentItem, itemWeights [][]int, knapsack
 				for d := 0; d < numDimensions; d++ {
 					usage[gpuIndex][d] -= event.Weight[d]
 				}
+				assignment[event.ItemIndex] = -1
+
+				// Print state change
+				fmt.Printf("Time %d: Removed %s from GPU %d\n", event.Time, items[event.ItemIndex].Type, gpuIndex)
+				printGPUState(usage, knapsackCapacity, numKnapsacks)
 			}
 		}
 	}
-	
-	return assignment
+
+	// Store assignment in input for final summary
+	input.Assignment = assignment
+	return true
+}
+
+func printGPUState(usage [][]int, capacity []int, numKnapsacks int) {
+	fmt.Print("  GPU Usage: ")
+	for k := 0; k < numKnapsacks; k++ {
+		if k > 0 {
+			fmt.Print(", ")
+		}
+		fmt.Printf("GPU%d[", k)
+		for d := 0; d < len(capacity); d++ {
+			if d > 0 {
+				fmt.Print(",")
+			}
+			fmt.Printf("%d/%d", usage[k][d], capacity[d])
+		}
+		fmt.Print("]")
+	}
+	fmt.Println()
 }

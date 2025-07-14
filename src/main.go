@@ -14,13 +14,13 @@ type Config struct {
 		Capacity []int            `yaml:"capacity"`
 		Mappings map[string][]int `yaml:"mappings"`
 	} `yaml:"gpu"`
-	Items []ConfigItem `yaml:"items"`
+	Pods []ConfigItem `yaml:"pods"`
 }
 
 type ConfigItem struct {
 	Type       string `yaml:"type"`
-	Time       int    `yaml:"time"`
-	RemoveTime *int   `yaml:"remove_time,omitempty"`
+	AddTime    int    `yaml:"addTime"`
+	RemoveTime *int   `yaml:"removeTime,omitempty"`
 }
 
 func parseArgs() string {
@@ -46,20 +46,20 @@ func loadConfig(filename string) Config {
 func printConfig(cfg Config) {
 	fmt.Printf("GPUs: %d\n", cfg.GPU.Number)
 	fmt.Printf("GPU Capacities: %v\n", cfg.GPU.Capacity)
-	fmt.Printf("Items: %d\n", len(cfg.Items))
-	for _, item := range cfg.Items {
-		fmt.Printf("  %s (t=%d)\n", item.Type, item.Time)
+	fmt.Printf("Events: %d\n", len(cfg.Pods))
+	for _, event := range cfg.Pods {
+		fmt.Printf("  %s (addTime=%d)\n", event.Type, event.AddTime)
 	}
 	fmt.Println()
 }
 
 func buildAllPods(cfg Config) []AssignmentItem {
-	allPods := make([]AssignmentItem, len(cfg.Items))
-	for i, item := range cfg.Items {
+	allPods := make([]AssignmentItem, len(cfg.Pods))
+	for i, event := range cfg.Pods {
 		allPods[i] = AssignmentItem{
-			Type:           item.Type,
-			AssignmentTime: item.Time,
-			RemoveTime:     item.RemoveTime,
+			Type:           event.Type,
+			AssignmentTime: event.AddTime,
+			RemoveTime:     event.RemoveTime,
 		}
 	}
 	return allPods
@@ -82,22 +82,43 @@ func main() {
 		Mappings:         cfg.GPU.Mappings,
 	}
 
-	// Assign all pods using timestamp-based algorithm
-	success, err := AssignItems(input)
-	if err != nil {
-		log.Fatalf("Assignment error: %v", err)
-	}
+	// Run event-driven simulation
+	success := runSimulation(input)
 	if !success {
 		fmt.Println("No valid assignment found.")
 		return
 	}
 
-	// Print results
-	printNewAssignment(input)
+	// Print final summary with just types
+	printFinalSummary(input)
 }
 
-func printNewAssignment(input *AssignmentInput) {
-	fmt.Println("GPU Assignment:")
+func runSimulation(input *AssignmentInput) bool {
+	if input == nil {
+		return false
+	}
+
+	// Validate input
+	if err := validateAssignmentInput(input); err != nil {
+		return false
+	}
+
+	// Build item weights from mappings
+	itemWeights := make([][]int, len(input.Items))
+	for i, item := range input.Items {
+		weights, exists := input.Mappings[item.Type]
+		if !exists {
+			return false
+		}
+		itemWeights[i] = weights
+	}
+
+	// Run the simulation with state tracking
+	return runEventLoop(input.Items, itemWeights, input.KnapsackCapacity, input.NumKnapsacks, input)
+}
+
+func printFinalSummary(input *AssignmentInput) {
+	fmt.Println("\nFinal GPU Assignment:")
 
 	// Group items by knapsack
 	knapsackToItems := make(map[int][]int)
@@ -117,13 +138,7 @@ func printNewAssignment(input *AssignmentInput) {
 					fmt.Print(", ")
 				}
 				podType := input.Items[itemIndex].Type
-				podTime := input.Items[itemIndex].AssignmentTime
-				removeTime := input.Items[itemIndex].RemoveTime
-				if removeTime != nil {
-					fmt.Printf("%s (t=%d, remove=%d)", podType, podTime, *removeTime)
-				} else {
-					fmt.Printf("%s (t=%d)", podType, podTime)
-				}
+				fmt.Print(podType)
 			}
 		}
 		fmt.Println()

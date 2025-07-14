@@ -20,15 +20,15 @@ gpu:
     4g.40gb: [4, 4]
     7g.80gb: [7, 8] # 7/7 the SM and 8/8 the Memory
 # Can these pods be assigned to the GPUs above?
-items:
+pods:
   - type: 3g.40gb
-    time: 1
+    addTime: 1
   - type: 1g.10gb
-    time: 5
+    addTime: 5
   - type: 3g.40gb
-    time: 3
+    addTime: 3
   - type: 1g.10gb
-    time: 6
+    addTime: 6
 ```
 
 First, build the program.

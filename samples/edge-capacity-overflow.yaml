@@ -8,10 +8,10 @@ gpu:
     8g.80gb: [8, 8]
     10g.100gb: [10, 12]
 
-items:
+pods:
   - type: 8g.80gb
-    time: 1
+    addTime: 1
   - type: 10g.100gb
-    time: 2
+    addTime: 2
   - type: 3g.40gb
-    time: 3
+    addTime: 3

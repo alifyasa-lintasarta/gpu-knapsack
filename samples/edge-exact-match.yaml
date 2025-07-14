@@ -6,10 +6,10 @@ gpu:
     4g.40gb: [4, 4]
     3g.40gb: [3, 4]
 
-items:
+pods:
   - type: 7g.80gb
-    time: 1
+    addTime: 1
   - type: 4g.40gb
-    time: 2
+    addTime: 2
   - type: 3g.40gb
-    time: 3
+    addTime: 3

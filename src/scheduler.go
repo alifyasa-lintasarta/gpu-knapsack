@@ -42,32 +42,3 @@ func validateAssignmentInput(input *AssignmentInput) error {
 
 	return nil
 }
-
-func AssignItems(input *AssignmentInput) (bool, error) {
-	if input == nil {
-		return false, fmt.Errorf("input cannot be nil")
-	}
-
-	// Validate input
-	if err := validateAssignmentInput(input); err != nil {
-		return false, err
-	}
-
-	// Build item weights from mappings
-	itemWeights := make([][]int, len(input.Items))
-	for i, item := range input.Items {
-		weights, exists := input.Mappings[item.Type]
-		if !exists {
-			return false, fmt.Errorf("no mapping found for item type %s", item.Type)
-		}
-		itemWeights[i] = weights
-	}
-
-	// Use timeline-based assignment (handles remove_time properly)
-	if assignment := tryTimelineAssignment(input.Items, itemWeights, input.KnapsackCapacity, input.NumKnapsacks); assignment != nil {
-		input.Assignment = assignment
-		return true, nil
-	}
-
-	return false, nil
-}
