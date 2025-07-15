@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sort"
 )
 
 type Event struct {
@@ -12,40 +11,10 @@ type Event struct {
 	Weight    []int
 }
 
-func buildEventTimeline(items []PodItem, itemWeights [][]int) []Event {
-	var events []Event
 
-	for i, item := range items {
-		events = append(events, Event{
-			Time:      item.AssignmentTime,
-			Type:      "assign",
-			ItemIndex: i,
-			Weight:    itemWeights[i],
-		})
-
-		if item.RemoveTime != nil {
-			events = append(events, Event{
-				Time:      *item.RemoveTime,
-				Type:      "remove",
-				ItemIndex: i,
-				Weight:    itemWeights[i],
-			})
-		}
-	}
-
-	sort.Slice(events, func(i, j int) bool {
-		if events[i].Time == events[j].Time {
-			return events[i].Type == "remove" && events[j].Type == "assign"
-		}
-		return events[i].Time < events[j].Time
-	})
-
-	return events
-}
-
-func processEvents(items []PodItem, itemWeights [][]int, gpuCapacity []int, numGPUs int, input *SchedulingInput) bool {
+func processEvents(items []PodSpec, itemWeights [][]int, gpuCapacity []int, numGPUs int, input *SchedulingInput) bool {
 	capacityDimensions := len(gpuCapacity)
-	events := buildEventTimeline(items, itemWeights)
+	events := input.GPUFamily.buildEventTimeline(items, itemWeights)
 
 	usage := make([][]int, numGPUs)
 	for i := range usage {

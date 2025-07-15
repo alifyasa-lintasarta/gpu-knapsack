@@ -16,5 +16,6 @@ pods:
     removeTime: 3
   - type: 1g.10gb
     addTime: 4
+    removeTime: 5
   - type: 2g.20gb
-    addTime: 5
+    addTime: 6

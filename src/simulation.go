@@ -11,17 +11,7 @@ func runSimulation(input *SchedulingInput) bool {
 		return false
 	}
 
-	itemWeights := make([][]int, len(input.Items))
-	for i, item := range input.Items {
-		weights, exists := input.GPUFamily.Mappings[item.Type]
-		if !exists {
-			return false
-		}
-		itemWeights[i] = weights
-	}
-
-	events := buildEventTimeline(input.Items, itemWeights)
-	result := input.GPUFamily.calculateFit(input.NumGPUs, input.Quota, events, input.Items)
+	result := input.GPUFamily.calculateFit(input.NumGPUs, input.Quota, input.Items)
 	
 	if !result.Success {
 		return false

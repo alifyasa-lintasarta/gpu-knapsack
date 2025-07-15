@@ -2,14 +2,9 @@ package main
 
 import "fmt"
 
-type PodItem struct {
-	Type           string
-	AssignmentTime int
-	RemoveTime     *int
-}
 
 type SchedulingInput struct {
-	Items      []PodItem
+	Items      []PodSpec
 	NumGPUs    int
 	Quota      map[string]int
 	GPUFamily  GPUFamily
@@ -39,14 +34,3 @@ func validateSchedulingInput(input *SchedulingInput) error {
 	return nil
 }
 
-func createPodItems(cfg Config) []PodItem {
-	podItems := make([]PodItem, len(cfg.Pods))
-	for i, podSpec := range cfg.Pods {
-		podItems[i] = PodItem{
-			Type:           podSpec.Type,
-			AssignmentTime: podSpec.AddTime,
-			RemoveTime:     podSpec.RemoveTime,
-		}
-	}
-	return podItems
-}

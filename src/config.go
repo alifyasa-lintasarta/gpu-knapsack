@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"sort"
 
 	"gopkg.in/yaml.v2"
 )
@@ -54,7 +55,54 @@ func loadConfig(filename string) Config {
 	return cfg
 }
 
-func (gf *GPUFamily) calculateFit(numGPUs int, quota map[string]int, podEvents []Event, items []PodItem) FitResult {
+func (gf *GPUFamily) buildEventTimeline(pods []PodSpec, itemWeights [][]int) []Event {
+	var events []Event
+
+	for i, pod := range pods {
+		events = append(events, Event{
+			Time:      pod.AddTime,
+			Type:      "assign",
+			ItemIndex: i,
+			Weight:    itemWeights[i],
+		})
+
+		if pod.RemoveTime != nil {
+			events = append(events, Event{
+				Time:      *pod.RemoveTime,
+				Type:      "remove",
+				ItemIndex: i,
+				Weight:    itemWeights[i],
+			})
+		}
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].Time == events[j].Time {
+			return events[i].Type == "remove" && events[j].Type == "assign"
+		}
+		return events[i].Time < events[j].Time
+	})
+
+	return events
+}
+
+func (gf *GPUFamily) calculateFit(numGPUs int, quota map[string]int, pods []PodSpec) FitResult {
+	itemWeights := make([][]int, len(pods))
+	for i, pod := range pods {
+		weights, exists := gf.Mappings[pod.Type]
+		if !exists {
+			return FitResult{
+				Success:    false,
+				Assignment: make([]int, len(pods)),
+				Layout:     make([][]int, numGPUs),
+				QuotaUsage: make(map[string]int),
+			}
+		}
+		itemWeights[i] = weights
+	}
+	
+	podEvents := gf.buildEventTimeline(pods, itemWeights)
+	
 	quotaUsage := make(map[string]int)
 	
 	capacityDimensions := len(gf.Capacity)
@@ -63,14 +111,14 @@ func (gf *GPUFamily) calculateFit(numGPUs int, quota map[string]int, podEvents [
 		usage[i] = make([]int, capacityDimensions)
 	}
 	
-	assignment := make([]int, len(podEvents))
+	assignment := make([]int, len(pods))
 	for i := range assignment {
 		assignment[i] = -1
 	}
 	
 	for _, event := range podEvents {
 		if event.Type == "assign" {
-			podType := items[event.ItemIndex].Type
+			podType := pods[event.ItemIndex].Type
 			
 			if quota[podType] > quotaUsage[podType] {
 				quotaUsage[podType]++
