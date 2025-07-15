@@ -1,0 +1,20 @@
+gpu:
+  number: 2
+  capacity: [7, 8]
+  quota:
+    1g.10gb: 0
+    2g.20gb: 1
+  mappings:
+    1g.10gb: [1, 1]
+    2g.20gb: [2, 2]
+
+pods:
+  - type: 1g.10gb
+    addTime: 1
+  - type: 2g.20gb
+    addTime: 2
+    removeTime: 3
+  - type: 1g.10gb
+    addTime: 4
+  - type: 2g.20gb
+    addTime: 5

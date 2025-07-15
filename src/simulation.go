@@ -13,19 +13,27 @@ func runSimulation(input *SchedulingInput) bool {
 
 	itemWeights := make([][]int, len(input.Items))
 	for i, item := range input.Items {
-		weights, exists := input.Mappings[item.Type]
+		weights, exists := input.GPUFamily.Mappings[item.Type]
 		if !exists {
 			return false
 		}
 		itemWeights[i] = weights
 	}
 
-	return processEvents(input.Items, itemWeights, input.GPUCapacity, input.NumGPUs, input)
+	events := buildEventTimeline(input.Items, itemWeights)
+	result := input.GPUFamily.calculateFit(input.NumGPUs, input.Quota, events, input.Items)
+	
+	if !result.Success {
+		return false
+	}
+	
+	input.Assignment = result.Assignment
+	return true
 }
 
 func printConfig(cfg Config) {
 	fmt.Printf("GPUs: %d\n", cfg.GPU.Number)
-	fmt.Printf("GPU Capacities: %v\n", cfg.GPU.Capacity)
+	fmt.Printf("GPU Capacities: %v\n", cfg.GPU.GPUFamily.Capacity)
 	fmt.Printf("Events: %d\n", len(cfg.Pods))
 	for _, event := range cfg.Pods {
 		if event.RemoveTime != nil {
